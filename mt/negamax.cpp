@@ -4,7 +4,7 @@ int NegaMaxAI::GetValue(int column)
 {
     if (column > 7) return 0;
     int n = 0;
-    for (int i = 0; i <= 6; i++) {
+    for (int i = 0; i < 6; i++) {
         if (board[column + 7 * i] == ' ') {
             n = column + 7 * i;
             break;

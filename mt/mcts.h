@@ -36,56 +36,56 @@ bool isBoardFull(const char board[CELLS]);
 
 
 // ─────────────────────────────────────────────
-//  MCTS Node
+//  MCTS Node (src-style: score for UCT and best move)
 // ─────────────────────────────────────────────
 struct Node {
-    int  col;           // Column this node represents (-1 for root)
-    int  wins;          // Accumulated win score
-    int  moves;         // Number of moves to terminal state across rollouts
-    int  visits;        // How many times this node has been visited
-    double ucbValue;    // Cached UCB1 value (updated in back-propagation)
-
-    Node*              parent;
+    int    col;     // Column this node represents (-1 for root)
+    double score;  // Accumulated simulation result (AI win +1, draw 0, opponent -2)
+    int    visits;  // Number of simulations through this node
+    Node*  parent;
     std::vector<Node*> childArray;
 
     explicit Node(int col = -1, Node* parent = nullptr);
     ~Node();
 
-    // Non-copyable to avoid accidental double-free of children
     Node(const Node&)            = delete;
     Node& operator=(const Node&) = delete;
 };
 
 
 // ─────────────────────────────────────────────
-//  Monte Carlo Tree Search
+//  Monte Carlo Tree Search (algorithm from src)
 // ─────────────────────────────────────────────
 class MonteCarloTreeSearch {
 public:
-    MonteCarloTreeSearch(const char currentBoard[CELLS], int iterations = 500);
+    MonteCarloTreeSearch(const char currentBoard[CELLS], int iterations = 50000);
+    ~MonteCarloTreeSearch();
 
     // Run MCTS and return the best column (0-indexed).
     int bestMove();
 
-    // Set how many MCTS iterations to run per call to bestMove().
     void setIterations(int n) { iterations_ = n; }
 
     bool finalMove;   // true if AI found a forced win in one move
 
 private:
-    char  board_[CELLS];   // snapshot of the board at decision time
-    int   iterations_;
+    char board_[CELLS];
+    int  iterations_;
+    static constexpr int SIMS_PER_EXPAND = 100;  // src: 100 simulations per expanded node
 
-    Node*              rootNode_;
-    std::vector<Node*> maxUcbNodes_;
+    Node* rootNode_;
 
-    // ── MCTS phases ──────────────────────────
-    void   select       (Node* parentNode);
-    void   expand       (Node* parentNode);
-    void   rollOut      (Node* nonVisitedNode);
-    void   backPropagate(Node* rolledOutNode, int win, int moves);
-    void   updateMaxUcbNode(Node* node);
+    // Replay from root to node to get board state at node; returns whose turn is next (true = AI).
+    void getBoardAtNode(Node* node, char out[CELLS], bool* turnIsAI) const;
+    // UCT as in src: score/visits + 1.41*sqrt(log(parent->visits)/visits), unvisited = +inf
+    double getUCT(Node* child) const;
+    Node*  getBestChild(Node* parent) const;
 
-    // Returns a random legal column on board, or -1 if board is full.
-    int    randomLegalMove(const char board[CELLS]) const;
+    void runIteration();
+    void expand(Node* leaf);
+    // Simulate from board with given turn; return 1 (AI win), 0 (draw), -2 (opponent win).
+    double simulate(char board[CELLS], bool turnIsAI) const;
+    void   backPropagate(Node* node, double value);
+
+    int randomLegalMove(const char board[CELLS]) const;
 };

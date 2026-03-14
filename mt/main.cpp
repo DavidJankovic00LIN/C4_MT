@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <string>
 #include <thread>
@@ -8,11 +9,22 @@
 #include <cstring>
 #include <cstdint>
 #include <cstdlib>
+#include <ctime>
 
 #include "negamax.h"
 #include "mcts.h"
 
 using namespace std;
+
+// #region agent log
+static const char* const DEBUG_LOG_PATH = "/home/david/Desktop/C4_MT/.cursor/debug-06cedf.log";
+static void debugLog(const char* location, const char* message, const string& dataJson) {
+    ofstream f(DEBUG_LOG_PATH, ios::app);
+    if (!f) return;
+    long ts = static_cast<long>(time(nullptr));
+    f << "{\"sessionId\":\"06cedf\",\"location\":\"" << location << "\",\"message\":\"" << message << "\",\"data\":" << dataJson << ",\"timestamp\":" << ts << "}\n";
+}
+// #endregion
 
 // ─────────────────────────────────────────────────────────────
 //  Result of one complete game
@@ -79,10 +91,15 @@ static GameResult runNegamax(const vector<int>& moves) {
     auto t0 = chrono::high_resolution_clock::now();
 
     size_t moveIdx = 0;
+    int turn = 0;
 
     while (true) {
+        turn++;
         // AI plays
         int aiCell = ai.AIManager();
+        // #region agent log
+        { ostringstream d; d << "{\"game\":\"NegaMax\",\"turn\":" << turn << ",\"aiCell\":" << aiCell << "}"; debugLog("main.cpp:runNegamax_ai", "ai_move", d.str()); }
+        // #endregion
         if (aiCell != 0) {
             ai.board[aiCell] = 'O';
             memcpy(res.board, ai.board, sizeof(res.board));
@@ -103,6 +120,9 @@ static GameResult runNegamax(const vector<int>& moves) {
                 if (cell != 0) break;
             }
         }
+        // #region agent log
+        { ostringstream d; d << "{\"game\":\"NegaMax\",\"turn\":" << turn << ",\"inputCol\":" << col << ",\"cell\":" << cell << "}"; debugLog("main.cpp:runNegamax_human", "human_move", d.str()); }
+        // #endregion
         if (cell != 0) {
             ai.board[cell] = 'X';
             memcpy(res.board, ai.board, sizeof(res.board));
@@ -112,6 +132,9 @@ static GameResult runNegamax(const vector<int>& moves) {
         if (w != 0) { res.winner = w; break; }
     }
 
+    // #region agent log
+    { ostringstream d; d << "{\"game\":\"NegaMax\",\"winner\":" << (int)res.winner << "}"; debugLog("main.cpp:runNegamax", "game_end", d.str()); }
+    // #endregion
     auto t1 = chrono::high_resolution_clock::now();
     res.durationMs = chrono::duration<double, milli>(t1 - t0).count();
     return res;
@@ -123,7 +146,7 @@ static GameResult runNegamax(const vector<int>& moves) {
 static int negaGetValue(const char board[43], int column) {
     if (column > 7) return 0;
     int n = 0;
-    for (int i = 0; i <= 6; i++) {
+    for (int i = 0; i < 6; i++) {
         if (board[column + 7 * i] == ' ') {
             n = column + 7 * i;
             break;
@@ -187,8 +210,10 @@ static GameResult runMcts(const vector<int>& moves) {
     auto t0 = chrono::high_resolution_clock::now();
 
     size_t moveIdx = 0;
+    int turn = 0;
 
     while (true) {
+        turn++;
         // Build MCTS board from current res.board state
         char mctsBoard[CELLS];
         toMctsBoard(res.board, mctsBoard);
@@ -196,8 +221,17 @@ static GameResult runMcts(const vector<int>& moves) {
         MonteCarloTreeSearch mcts(mctsBoard);
         int bestCol = mcts.bestMove(); // 0-indexed
 
-        // Convert back to NegaMax layout
-        int aiCell = negaGetValue(res.board, bestCol + 1);
+        // Convert back to NegaMax layout; ako MCTS vrati -1 ili kolona puna, fallback na prvu legalnu
+        int aiCell = (bestCol >= 0 && bestCol < COLS) ? negaGetValue(res.board, bestCol + 1) : 0;
+        if (aiCell == 0) {
+            for (int c = 1; c <= 7; c++) {
+                aiCell = negaGetValue(res.board, c);
+                if (aiCell != 0) break;
+            }
+        }
+        // #region agent log
+        { ostringstream d; d << "{\"game\":\"MCTS\",\"turn\":" << turn << ",\"bestCol\":" << bestCol << ",\"aiCell\":" << aiCell << "}"; debugLog("main.cpp:runMcts_ai", "ai_move", d.str()); }
+        // #endregion
         if (aiCell != 0)
             res.board[aiCell] = 'O';
 
@@ -215,6 +249,9 @@ static GameResult runMcts(const vector<int>& moves) {
                 if (cell != 0) break;
             }
         }
+        // #region agent log
+        { ostringstream d; d << "{\"game\":\"MCTS\",\"turn\":" << turn << ",\"inputCol\":" << col << ",\"cell\":" << cell << "}"; debugLog("main.cpp:runMcts_human", "human_move", d.str()); }
+        // #endregion
         if (cell != 0)
             res.board[cell] = 'X';
 
@@ -222,6 +259,9 @@ static GameResult runMcts(const vector<int>& moves) {
         if (w != 0) { res.winner = w; break; }
     }
 
+    // #region agent log
+    { ostringstream d; d << "{\"game\":\"MCTS\",\"winner\":" << res.winner << "}"; debugLog("main.cpp:runMcts", "game_end", d.str()); }
+    // #endregion
     auto t1 = chrono::high_resolution_clock::now();
     res.durationMs = chrono::duration<double, milli>(t1 - t0).count();
     return res;
