@@ -1,8 +1,10 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -pthread
+# Runtime: jedan parametar N (7–15), tabla N x N. Veći niz pri kompilaciji:
+#   CXXFLAGS += -DBOARD_ROWS_MAX=24 -DBOARD_COLS_MAX=24
 TARGET = mt_runner
 
-SRC = main.cpp mcts.cpp negamax.cpp
+SRC = main.cpp mcts.cpp negamax.cpp board.cpp
 OBJ = $(SRC:.cpp=.o)
 
 all: $(TARGET)
