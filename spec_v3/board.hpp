@@ -70,3 +70,38 @@ inline char nextPiece(char piece) {
         return PIECE_AT;
     return PIECE_X;
 }
+
+// Kolona kojom me odmah pobedi; 0 ako nema.
+inline int findWinningColumn(char* board, char me) {
+    for (int col = 1; col <= g_n; ++col) {
+        if (!isLegalMove(board, col))
+            continue;
+        int cell = lowestFreeCell(board, col);
+        board[cell] = me;
+        bool win = (findWinner(board) == me);
+        board[cell] = EMPTY;
+        if (win)
+            return col;
+    }
+    return 0;
+}
+
+// Kolona kojom neki protivnik odmah pobedi (za blok); 0 ako nema.
+inline int findBlockingColumn(char* board, char me) {
+    static const char kAll[] = {PIECE_X, PIECE_O, PIECE_PLUS, PIECE_AT};
+    for (char opp : kAll) {
+        if (opp == me)
+            continue;
+        for (int col = 1; col <= g_n; ++col) {
+            if (!isLegalMove(board, col))
+                continue;
+            int cell = lowestFreeCell(board, col);
+            board[cell] = opp;
+            bool oppWins = (findWinner(board) == opp);
+            board[cell] = EMPTY;
+            if (oppWins)
+                return col;
+        }
+    }
+    return 0;
+}

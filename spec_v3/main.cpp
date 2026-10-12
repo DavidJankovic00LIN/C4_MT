@@ -1,7 +1,7 @@
 #include "board.hpp"
 #include "draw_board.hpp"
-#include "paranoid_negamax.hpp"
-#include "flat_mcts.hpp"
+#include "negamax.hpp"
+#include "mcts.hpp"
 #include "greedy.hpp"
 #include "input_player.hpp"
 
@@ -12,8 +12,8 @@
 
 static const char* pieceName(char p) {
     switch (p) {
-    case PIECE_X:    return "X (Paranoid NegaMax)";
-    case PIECE_O:    return "O (Flat MCTS)";
+    case PIECE_X:    return "X (NegaMax)";
+    case PIECE_O:    return "O (MCTS)";
     case PIECE_PLUS: return "+ (Greedy)";
     case PIECE_AT:   return "@ (input.txt)";
     default:         return "?";
@@ -55,7 +55,7 @@ int main() {
         return 1;
     }
 
-    std::cout << "Igraci: X=ParanoidNegaMax, O=FlatMCTS, +=Greedy, @=input.txt\n";
+    std::cout << "Igraci: X=NegaMax, O=MCTS, +=Greedy, @=input.txt\n";
     std::cout << "Redosled: X -> O -> + -> @\n";
 
     drawBoard(board);
@@ -64,9 +64,9 @@ int main() {
     while (true) {
         int col = 0;
         if (turn == PIECE_X)
-            col = chooseColumnParanoidNegamax(board, PIECE_X);
+            col = chooseColumnNegamax(board, PIECE_X);
         else if (turn == PIECE_O)
-            col = chooseColumnFlatMcts(board, PIECE_O);
+            col = chooseColumnMcts(board, PIECE_O);
         else if (turn == PIECE_PLUS)
             col = chooseColumnGreedy(board, PIECE_PLUS);
         else

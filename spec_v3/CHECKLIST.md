@@ -4,8 +4,8 @@
 
 | Figura | Uloga | Fajlovi |
 |--------|-------|---------|
-| `X` | Paranoid NegaMax | `paranoid_negamax.*` |
-| `O` | Flat / pure Monte Carlo | `flat_mcts.*` |
+| `X` | NegaMax | `negamax.*` |
+| `O` | MCTS | `mcts.*` |
 | `+` | Greedy | `greedy.*` |
 | `@` | Potezi iz `input.txt` | `input_player.*` |
 
@@ -47,8 +47,8 @@ Build: `make` → `./spec_v3_runner`
 | 3 | 4 figure X O + @ | Da |
 | 4 | `drawBoard` | Da |
 | 5 | `applyMove` / `findWinner` / `isBoardFull` | Da |
-| 6 | Paranoid NegaMax (X) | Da |
-| 7 | Flat MCTS (O) | Da |
+| 6 | NegaMax (X) | Da |
+| 7 | MCTS (O) | Da |
 | 8 | Greedy (+) | Da |
 | 9 | Input player (@) | Da |
 | 10 | Game loop u `main` | Da |

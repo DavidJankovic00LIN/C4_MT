@@ -3,7 +3,7 @@ CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 TARGET = spec_v3_runner
 
 SRC = main.cpp board.cpp draw_board.cpp \
-      paranoid_negamax.cpp flat_mcts.cpp greedy.cpp input_player.cpp
+      negamax.cpp mcts.cpp greedy.cpp input_player.cpp
 OBJ = $(SRC:.cpp=.o)
 
 all: $(TARGET)

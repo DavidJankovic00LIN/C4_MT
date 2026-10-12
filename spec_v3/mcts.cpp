@@ -1,4 +1,4 @@
-#include "flat_mcts.hpp"
+#include "mcts.hpp"
 
 #include <cstdlib>
 #include <cstring>
@@ -16,7 +16,6 @@ static int randomLegalColumn(const char board[BOARD_STORAGE_SIZE]) {
     return legal[std::rand() % count];
 }
 
-// Nasumično dovrši partiju; +1 ako pobedi me, -1 ako neko drugi, 0 nerešeno.
 static int playout(char board[BOARD_STORAGE_SIZE], char me, char toMove) {
     while (true) {
         char w = findWinner(board);
@@ -32,8 +31,15 @@ static int playout(char board[BOARD_STORAGE_SIZE], char me, char toMove) {
     }
 }
 
-int chooseColumnFlatMcts(char board[BOARD_STORAGE_SIZE], char me) {
-    int bestCol   = 0;
+int chooseColumnMcts(char board[BOARD_STORAGE_SIZE], char me) {
+    int win = findWinningColumn(board, me);
+    if (win != 0)
+        return win;
+    int block = findBlockingColumn(board, me);
+    if (block != 0)
+        return block;
+
+    int bestCol    = 0;
     double bestAvg = -1e300;
 
     for (int col = 1; col <= g_n; ++col) {
