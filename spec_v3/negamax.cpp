@@ -25,10 +25,9 @@ static int evaluateTerminal(char winner, char me) {
 }
 
 static int search(char board[BOARD_STORAGE_SIZE], char me, char toMove, int depth,
-                  const int* order, int orderCount) {
-    char winner = findWinner(board);
-    if (winner != EMPTY)
-        return evaluateTerminal(winner, me);
+                  const int* order, int orderCount, int lastCell) {
+    if (lastCell != 0 && winsFromCell(board, lastCell))
+        return evaluateTerminal(board[lastCell], me);
     if (depth > MAX_DEPTH || isBoardFull(board))
         return 0;
 
@@ -43,7 +42,7 @@ static int search(char board[BOARD_STORAGE_SIZE], char me, char toMove, int dept
                 continue;
             int cell = lowestFreeCell(board, col);
             board[cell] = toMove;
-            int score = search(board, me, nextPiece(toMove), depth + 1, order, orderCount);
+            int score = search(board, me, nextPiece(toMove), depth + 1, order, orderCount, cell);
             board[cell] = EMPTY;
             if (!any || score > best)
                 best = score;
@@ -62,7 +61,7 @@ static int search(char board[BOARD_STORAGE_SIZE], char me, char toMove, int dept
             continue;
         int cell = lowestFreeCell(board, col);
         board[cell] = toMove;
-        int score = search(board, me, nextPiece(toMove), depth + 1, order, orderCount);
+        int score = search(board, me, nextPiece(toMove), depth + 1, order, orderCount, cell);
         board[cell] = EMPTY;
         if (!any || score < best)
             best = score;
@@ -94,7 +93,7 @@ int chooseColumnNegamax(char board[BOARD_STORAGE_SIZE], char me) {
             continue;
         int cell = lowestFreeCell(board, col);
         board[cell] = me;
-        int score = search(board, me, nextPiece(me), 1, order, orderCount);
+        int score = search(board, me, nextPiece(me), 1, order, orderCount, cell);
         board[cell] = EMPTY;
         if (bestCol == 0 || score > bestScore) {
             bestScore = score;

@@ -13,7 +13,7 @@
 - Indeksiranje **NegaMax**: `index = col + N*row`, kolone 1…N, indeks 0 neiskorišćen
 - Gravitacija na dno; pobeda = 4 iste u nizu
 - Redosled: `X → O → + → @`
-- Sliding window **nije** AI (ostaje za kasniju optimizaciju `findWinner`)
+- AI hot path koristi lokalnu proveru `winsFromCell` (full `findWinner` ostaje za `main`)
 
 Build: `make` → `./spec_v3_runner`
 
@@ -59,7 +59,7 @@ Build: `make` → `./spec_v3_runner`
 
 | # | Stavka |
 |---|--------|
-| 1 | Sliding-window optimizacija `findWinner` |
+| 1 | ~~Sliding-window / lokalna `winsFromCell`~~ (urađeno) |
 | 2 | Alpha-beta / EVA / PlayOut / provocation |
 | 3 | Paralelne partije / poređenje kao u `mt/` |
 | 4 | VP / SystemC / BRAM |

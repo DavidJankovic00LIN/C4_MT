@@ -9,7 +9,7 @@ static int countThreats(char board[BOARD_STORAGE_SIZE], char me) {
             continue;
         int cell = lowestFreeCell(board, col);
         board[cell] = me;
-        if (findWinner(board) == me)
+        if (winsFromCell(board, cell))
             ++threats;
         board[cell] = EMPTY;
     }

@@ -18,15 +18,16 @@ static int randomLegalColumn(const char board[BOARD_STORAGE_SIZE]) {
 
 static int playout(char board[BOARD_STORAGE_SIZE], char me, char toMove) {
     while (true) {
-        char w = findWinner(board);
-        if (w != EMPTY)
-            return (w == me) ? 1 : -1;
         if (isBoardFull(board))
             return 0;
         int col = randomLegalColumn(board);
         if (col == 0)
             return 0;
-        applyMove(board, col, toMove);
+        int cell = applyMoveCell(board, col, toMove);
+        if (cell == 0)
+            return 0;
+        if (winsFromCell(board, cell))
+            return (toMove == me) ? 1 : -1;
         toMove = nextPiece(toMove);
     }
 }
@@ -50,7 +51,13 @@ int chooseColumnMcts(char board[BOARD_STORAGE_SIZE], char me) {
         for (int s = 0; s < SIMS_PER_MOVE; ++s) {
             char sim[BOARD_STORAGE_SIZE];
             std::memcpy(sim, board, BOARD_STORAGE_SIZE);
-            applyMove(sim, col, me);
+            int cell = applyMoveCell(sim, col, me);
+            if (cell == 0)
+                continue;
+            if (winsFromCell(sim, cell)) {
+                sum += 1;
+                continue;
+            }
             sum += playout(sim, me, nextPiece(me));
         }
         double avg = static_cast<double>(sum) / SIMS_PER_MOVE;

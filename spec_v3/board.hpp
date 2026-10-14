@@ -53,9 +53,67 @@ inline bool applyMove(char* board, int col1, char piece) {
     return true;
 }
 
+// Kao applyMove, ali vraća index ćelije (0 ako nelegalno).
+inline int applyMoveCell(char* board, int col1, char piece) {
+    int cell = lowestFreeCell(board, col1);
+    if (cell == 0)
+        return 0;
+    board[cell] = piece;
+    return cell;
+}
+
+inline void cellToColRow(int cell, int* col1, int* row0) {
+    int c = cell % g_n;
+    if (c == 0)
+        c = g_n;
+    *col1 = c;
+    *row0 = (cell - c) / g_n;
+}
+
+// Pobeda od poslednje odigrane ćelije (O(kConnectLen) po pravcu).
+inline bool winsFromCell(const char* board, int cell) {
+    if (cell <= 0)
+        return false;
+    const char s = board[cell];
+    if (s == EMPTY)
+        return false;
+
+    int col1 = 0;
+    int row0 = 0;
+    cellToColRow(cell, &col1, &row0);
+
+    static const int kDirs[4][2] = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
+    for (const auto& d : kDirs) {
+        const int dc = d[0];
+        const int dr = d[1];
+        int count = 1;
+        for (int k = 1; k < kConnectLen; ++k) {
+            int c = col1 + dc * k;
+            int r = row0 + dr * k;
+            if (c < 1 || c > g_n || r < 0 || r >= g_n)
+                break;
+            if (board[cellIndex(c, r)] != s)
+                break;
+            ++count;
+        }
+        for (int k = 1; k < kConnectLen; ++k) {
+            int c = col1 - dc * k;
+            int r = row0 - dr * k;
+            if (c < 1 || c > g_n || r < 0 || r >= g_n)
+                break;
+            if (board[cellIndex(c, r)] != s)
+                break;
+            ++count;
+        }
+        if (count >= kConnectLen)
+            return true;
+    }
+    return false;
+}
+
 void clearBoard(char board[BOARD_STORAGE_SIZE]);
 
-// Vraća figuricu pobednika ili EMPTY ako nema.
+// Vraća figuricu pobednika ili EMPTY ako nema (full-board scan; za retke pozive).
 char findWinner(const char board[BOARD_STORAGE_SIZE]);
 
 bool isBoardFull(const char board[BOARD_STORAGE_SIZE]);
@@ -78,7 +136,7 @@ inline int findWinningColumn(char* board, char me) {
             continue;
         int cell = lowestFreeCell(board, col);
         board[cell] = me;
-        bool win = (findWinner(board) == me);
+        bool win = winsFromCell(board, cell);
         board[cell] = EMPTY;
         if (win)
             return col;
@@ -97,7 +155,7 @@ inline int findBlockingColumn(char* board, char me) {
                 continue;
             int cell = lowestFreeCell(board, col);
             board[cell] = opp;
-            bool oppWins = (findWinner(board) == opp);
+            bool oppWins = winsFromCell(board, cell);
             board[cell] = EMPTY;
             if (oppWins)
                 return col;
