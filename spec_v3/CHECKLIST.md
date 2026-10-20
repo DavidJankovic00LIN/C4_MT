@@ -14,6 +14,8 @@
 - Gravitacija na dno; pobeda = 4 iste u nizu
 - Redosled: `X → O → + → @`
 - AI hot path koristi lokalnu proveru `winsFromCell` (full `findWinner` ostaje za `main`)
+- NegaMax dubina `MAX_DEPTH = 6`, bez alpha-beta
+- MCTS je stablo (`kMctsIterations = 800`), ne playout po koloni
 
 Build: `make` → `./spec_v3_runner`
 
@@ -48,7 +50,7 @@ Build: `make` → `./spec_v3_runner`
 | 4 | `drawBoard` | Da |
 | 5 | `applyMove` / `findWinner` / `isBoardFull` | Da |
 | 6 | NegaMax (X) | Da |
-| 7 | MCTS (O) | Da |
+| 7 | MCTS (O), stablo (UCT / ekspanzija / playout / backprop) | Da |
 | 8 | Greedy (+) | Da |
 | 9 | Input player (@) | Da |
 | 10 | Game loop u `main` | Da |

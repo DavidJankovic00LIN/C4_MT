@@ -3,7 +3,7 @@
 #include <cmath>
 #include <limits>
 
-static constexpr int MAX_DEPTH = 4;
+static constexpr int MAX_DEPTH = 6;
 
 static void fillCenterOrder(int order[BOARD_SIDE_MAX], int* count) {
     *count = 0;

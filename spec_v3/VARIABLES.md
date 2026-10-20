@@ -104,29 +104,45 @@ index 0               neiskorišćen
 
 ### 4.1 Konstante
 
-| Ime              | Vrsta             | Vrednost | Značenje                                          |
-|------------------|-------------------|----------|---------------------------------------------------|
-| `SIMS_PER_MOVE`  | `constexpr int`   | `80`     | Broj playout-a po kandidat-koloni                 |
-| `-1e300`         | magični `double`  | —        | Početna „najgora“ vrednost za `bestAvg`           |
+| Ime                 | Vrsta              | Vrednost | Značenje                                              |
+|---------------------|--------------------|----------|-------------------------------------------------------|
+| `kMctsIterations`   | `constexpr int`    | `800`    | Broj iteracija stabla po potezu (ukupno, ne po koloni) |
+| `kUctC`             | `constexpr double` | `1.41`   | Eksploracioni član UCT-a                              |
+| `kPieces`           | `const char[4]`    | X O + @  | Redosled nagrada u čvoru (`reward[0..3]`)             |
 
-### 4.2 Parametri i lokalne (bitne)
+### 4.2 Čvor `Node`
+
+| Ime            | Tip                    | Značenje                                              |
+|----------------|------------------------|-------------------------------------------------------|
+| `col`          | `int`                  | Kolona poteza koji je doveo do čvora; koren je `0`    |
+| `playedBy`     | `char`                 | Figura koja je odigrala `col`; koren je `EMPTY`       |
+| `toMove`       | `char`                 | Igrač koji bira sledeći potez u ovom čvoru            |
+| `winner`       | `char`                 | Pobednik ako je `terminal`; `EMPTY` = nerešeno        |
+| `terminal`     | `bool`                 | Pobeda ili puna tabla; nema playout-a                 |
+| `visits`       | `int`                  | Broj prolazaka kroz čvor                              |
+| `reward`       | `double[4]`            | Zbir nagrada po figuri (`+1` pobeda, `-1` poraz)      |
+| `untried`      | `int[BOARD_SIDE_MAX]`  | Legalne kolone koje još nisu proširene                |
+| `untriedCount` | `int`                  | Broj neprobanih kolona                                |
+| `children`     | `vector<Node*>`        | Prošireni potomci                                     |
+| `parent`       | `Node*`                | Roditelj; koren je `nullptr`                          |
+
+Koren je stanje pre poteza `me`. Stablo se briše na izlasku iz `chooseColumnMcts`.
+
+### 4.3 Parametri i lokalne (bitne)
 
 | Ime                  | Vrsta        | Značenje                                              |
 |----------------------|--------------|-------------------------------------------------------|
 | `me`                 | param `char` | Figura za koju MCTS bira (obično `O`)                 |
-| `toMove`             | param `char` | Čiji je potez u playout-u                             |
-| `legal` / `count`    | lokalni      | Privremena lista legalnih kolona (random izbor)       |
-| `bestCol`            | lokalni int  | Najbolja kolona                                       |
-| `bestAvg`            | lokalni dbl  | Prosečan skor simulacija za tu kolonu                 |
-| `sum`                | lokalni int  | Zbir skorova jedne kolone                             |
-| `sim`                | lokalni niz  | Kopija table za jednu simulaciju                      |
+| `toMove`             | `char`       | Čiji je potez u playout-u                             |
+| `work` / `sim`       | lokalni niz  | Kopija table za spuštanje kroz stablo / playout       |
+| `actor`              | `char`       | Igrač čiju nagradu UCT maksimizuje (`parent->toMove`) |
 
-### 4.3 Skor playout-a
+### 4.4 Nagrada playout-a (po figuri, duž puta)
 
 | Vrednost | Značenje                         |
 |----------|----------------------------------|
-| `+1`     | Pobeda za `me`                   |
-| `-1`     | Pobeda nekog drugog              |
+| `+1`     | Ta figura je pobednik            |
+| `-1`     | Pobedio je neko drugi            |
 | `0`      | Nerešeno / puna tabla / prekid   |
 
 ---
@@ -137,7 +153,7 @@ index 0               neiskorišćen
 
 | Ime          | Vrsta             | Vrednost | Značenje                                       |
 |--------------|-------------------|----------|------------------------------------------------|
-| `MAX_DEPTH`  | `constexpr int`   | `4`      | Maks. dubina `search` (iza toga skor `0`)      |
+| `MAX_DEPTH`  | `constexpr int`   | `6`      | Maks. dubina `search` (iza toga skor `0`)      |
 
 ### 5.2 Parametri `search` / root
 
@@ -233,8 +249,9 @@ index 0               neiskorišćen
 
 | Parametar              | Fajl           | Podrazumevano | Efekat                         |
 |------------------------|----------------|---------------|--------------------------------|
-| `SIMS_PER_MOVE`        | `mcts.cpp`     | `80`          | Jačina / cena MCTS             |
-| `MAX_DEPTH`            | `negamax.cpp`  | `4`           | Jačina / cena NegaMax          |
+| `kMctsIterations`      | `mcts.cpp`     | `800`         | Broj iteracija MCTS stabla     |
+| `kUctC`                | `mcts.cpp`     | `1.41`        | UCT eksploracija               |
+| `MAX_DEPTH`            | `negamax.cpp`  | `6`           | Jačina / cena NegaMax          |
 | `kConnectLen`          | `board.hpp`    | `4`           | Pravilo pobede                 |
 | `kBoardSideMin`        | `board.hpp`    | `7`           | Donja granica N                |
 | `kBoardSideMax`        | `board.hpp`    | `15`          | Gornja granica N               |
@@ -251,8 +268,8 @@ index 0               neiskorišćen
 
 | Figura | Modul            | Strategija                                      |
 |--------|------------------|-------------------------------------------------|
-| `X`    | `negamax`        | Pretraga unapred (NegaMax, dubina `MAX_DEPTH`)  |
-| `O`    | `mcts`           | Playout-MCTS (`SIMS_PER_MOVE` simulacija/kolona)|
+| `X`    | `negamax`        | Pretraga unapred (NegaMax, dubina `MAX_DEPTH` = 6, bez alpha-beta) |
+| `O`    | `mcts`           | Stablo: UCT, ekspanzija jednog poteza, playout, backprop (`kMctsIterations`) |
 | `+`    | `greedy`         | Heuristika: centar + pretnje (+ win/block)      |
 | `@`    | `input_player`   | Sekvenca kolona iz `input.txt` (+ random fallback)|
 
@@ -326,16 +343,21 @@ Full-board `findWinner` ostaje u glavnoj petlji (`main`).
 |-------------------------|------------------------------------------------------------------------|
 | `fillCenterOrder`       | Generiše redosled kolona od centra ka ivicama (move ordering).         |
 | `evaluateTerminal`      | Skor terminalnog stanja: `+1` / `−1` / `0` u odnosu na `me`.           |
-| `search`                | Rekurzivna NegaMax pretraga do `MAX_DEPTH`; terminal preko `lastCell`. |
+| `search`                | Rekurzivna NegaMax pretraga do `MAX_DEPTH` (6); terminal preko `lastCell`. Skor i dalje `+1` / `−1` / `0`, bez alpha-beta. |
 | `chooseColumnNegamax`   | Win/block prvo; zatim root pretraga i izbor kolone sa najboljim skorom.|
 
 ### 12.5 `mcts` (figura O)
 
-| Funkcija               | Uloga                                                                   |
-|------------------------|-------------------------------------------------------------------------|
-| `randomLegalColumn`    | Uniforman izbor među legalnim kolonama.                                 |
-| `playout`              | Nasumična simulacija do kraja; skor `+1` / `−1` / `0` za `me`.          |
-| `chooseColumnMcts`     | Win/block prvo; zatim `SIMS_PER_MOVE` playout-a po koloni, max proseka. |
+| Funkcija               | Uloga                                                                                          |
+|------------------------|------------------------------------------------------------------------------------------------|
+| `fillUntried`          | Upisuje legalne kolone koje čvor još nije proširio.                                            |
+| `randomLegalColumn`    | Uniforman izbor među legalnim kolonama (za playout).                                           |
+| `playout`              | Nasumična simulacija do kraja; vraća figuru pobednika ili `EMPTY`.                             |
+| `uct` / `selectChild`  | Igrač na potezu bira dete sa najvećim UCT svoje nagrade; nepohođeno dete ima prioritet.        |
+| `expand`               | Dodaje tačno jedan neprobani potez. Pobeda ili puna tabla označava čvor kao `terminal`.        |
+| `backPropagate`        | `visits++` duž puta; pobeda `+1` toj figuri, ostalima `-1`, nerešeno `0`.                      |
+| `bestRootMove`         | Dete korena sa najviše poseta; izjednačenje rešava veća prosečna nagrada `me`.                 |
+| `chooseColumnMcts`     | Win/block prvo; zatim `kMctsIterations` iteracija stabla. Stablo se briše na izlasku.          |
 
 ### 12.6 `greedy` (figura +)
 
