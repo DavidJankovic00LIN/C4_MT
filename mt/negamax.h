@@ -18,5 +18,8 @@ public:
     int     AIManager();
 
 private:
+    // Vraća stari znak: -1 ako igrač na potezu odmah dobija, inače -max(deca).
     int NegaMax(int Depth);
+    // Vrednost za igrača na potezu, sa alpha-beta prozorom.
+    int search(int Depth, int alpha, int beta);
 };

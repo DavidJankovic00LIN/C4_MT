@@ -22,6 +22,11 @@ struct Node {
     int    visits;
     Node*  parent;
     std::vector<Node*> childArray;
+    int    untried[BOARD_COLS_MAX];
+    int    untriedCount;
+    bool   terminal;
+    double result;
+    bool   aiToMove;
 
     explicit Node(int col = -1, Node* parent = nullptr);
     ~Node();
@@ -44,16 +49,13 @@ public:
 private:
     char board_[BOARD_STORAGE_SIZE];
     int  iterations_;
-    static constexpr int SIMS_PER_EXPAND = 100;
 
     Node* rootNode_;
 
-    void getBoardAtNode(Node* node, char out[BOARD_STORAGE_SIZE], bool* turnIsAI) const;
     double getUCT(Node* child) const;
     Node*  getBestChild(Node* parent) const;
 
     void runIteration();
-    void expand(Node* leaf);
     double simulate(char board[BOARD_STORAGE_SIZE], bool turnIsAI) const;
     void   backPropagate(Node* node, double value);
 

@@ -2,6 +2,22 @@
 
 int MAX_DEPTH = 6;
 
+static constexpr int kAbBound = 4;
+
+static void fillCenterOrder(int order[BOARD_COLS_MAX], int* count) {
+    *count = 0;
+    const int center = (g_board_cols + 1) / 2;
+    for (int dist = 0; dist < g_board_cols; ++dist) {
+        for (int col = 1; col <= g_board_cols; ++col) {
+            int delta = col - center;
+            if (delta < 0)
+                delta = -delta;
+            if (delta == dist)
+                order[(*count)++] = col;
+        }
+    }
+}
+
 int NegaMaxAI::GetValue(int column) { return lowestFreeCell(board, column); }
 
 uint8_t NegaMaxAI::winning() {
@@ -23,7 +39,7 @@ int NegaMaxAI::AIManager() {
         int PlayNumber = GetValue(column);
         if (PlayNumber != 0) {
             board[PlayNumber] = 'O';
-            if (winning() == 2) {
+            if (winsFromCell(board, PlayNumber)) {
                 board[PlayNumber] = ' ';
                 return PlayNumber;
             }
@@ -43,58 +59,44 @@ int NegaMaxAI::AIManager() {
 }
 
 int NegaMaxAI::NegaMax(int Depth) {
-    char XO;
-    int  PlayNumber[BOARD_COLS_MAX + 1];
-    for (int i = 0; i <= BOARD_COLS_MAX; ++i)
-        PlayNumber[i] = 0;
-    int chance = 0;
+    return -search(Depth, -kAbBound, kAbBound);
+}
 
-    if (Depth % 2 != 0)
-        XO = 'X';
-    else
-        XO = 'O';
+int NegaMaxAI::search(int Depth, int alpha, int beta) {
+    const char XO = (Depth % 2 != 0) ? 'X' : 'O';
+    int order[BOARD_COLS_MAX];
+    int orderCount = 0;
+    fillCenterOrder(order, &orderCount);
 
-    for (int column = 1; column <= g_board_cols; column++)
-        PlayNumber[column] = GetValue(column);
-
-    for (int column = 1; column <= g_board_cols; column++) {
-        if (PlayNumber[column] != 0) {
-            board[PlayNumber[column]] = XO;
-            if (winning() != 0) {
-                PlayOut++;
-                if (XO == 'O')
-                    EVA++;
-                else
-                    EVA--;
-                board[PlayNumber[column]] = ' ';
-                return -1;
-            }
-            board[PlayNumber[column]] = ' ';
+    const bool recurse = Depth <= MAX_DEPTH;
+    bool any = false;
+    for (int i = 0; i < orderCount; ++i) {
+        const int cell = GetValue(order[i]);
+        if (cell == 0)
+            continue;
+        any = true;
+        board[cell] = XO;
+        if (winsFromCell(board, cell)) {
+            PlayOut++;
+            if (XO == 'O')
+                EVA++;
+            else
+                EVA--;
+            board[cell] = ' ';
+            return 1;
         }
-    }
-
-    if (Depth <= MAX_DEPTH) {
-        for (int column = 1; column <= g_board_cols; column++) {
-            int temp = 0;
-            if (PlayNumber[column] != 0) {
-                board[PlayNumber[column]] = XO;
-                if (winning() != 0) {
-                    PlayOut++;
-                    if (XO == 'O')
-                        EVA++;
-                    else
-                        EVA--;
-                    board[PlayNumber[column]] = ' ';
-                    return -1;
-                }
-                temp = NegaMax(Depth+1);
-                if (column == 1)
-                    chance = temp;
-                if (chance < temp)
-                    chance = temp;
-                board[PlayNumber[column]] = ' ';
-            }
+        if (!recurse) {
+            board[cell] = ' ';
+            continue;
         }
+        const int v = -search(Depth + 1, -beta, -alpha);
+        board[cell] = ' ';
+        if (v > alpha)
+            alpha = v;
+        if (alpha >= beta)
+            return alpha;
     }
-    return -chance;
+    if (!recurse || !any)
+        return 0;
+    return alpha;
 }

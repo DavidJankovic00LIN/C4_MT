@@ -31,6 +31,55 @@ inline int boardByteSize() { return g_board_rows * g_board_cols + 1; }
 
 inline int cellIndex(int col1, int row0) { return col1 + g_board_cols * row0; }
 
+inline void cellToColRow(int cell, int* col1, int* row0) {
+    int c = cell % g_board_cols;
+    if (c == 0)
+        c = g_board_cols;
+    *col1 = c;
+    *row0 = (cell - c) / g_board_cols;
+}
+
+// Pobeda od poslednje odigrane ćelije. Nova četvorka mora da je sadrži.
+inline bool winsFromCell(const char* board, int cell) {
+    if (cell <= 0)
+        return false;
+    const char s = board[cell];
+    if (s == ' ')
+        return false;
+
+    int col1 = 0;
+    int row0 = 0;
+    cellToColRow(cell, &col1, &row0);
+
+    static const int kDirs[4][2] = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
+    for (const auto& d : kDirs) {
+        const int dc = d[0];
+        const int dr = d[1];
+        int count = 1;
+        for (int k = 1; k < kConnectLen; ++k) {
+            int c = col1 + dc * k;
+            int r = row0 + dr * k;
+            if (c < 1 || c > g_board_cols || r < 0 || r >= g_board_rows)
+                break;
+            if (board[cellIndex(c, r)] != s)
+                break;
+            ++count;
+        }
+        for (int k = 1; k < kConnectLen; ++k) {
+            int c = col1 - dc * k;
+            int r = row0 - dr * k;
+            if (c < 1 || c > g_board_cols || r < 0 || r >= g_board_rows)
+                break;
+            if (board[cellIndex(c, r)] != s)
+                break;
+            ++count;
+        }
+        if (count >= kConnectLen)
+            return true;
+    }
+    return false;
+}
+
 inline int lowestFreeCell(const char* board, int col1) {
     if (col1 < 1 || col1 > g_board_cols)
         return 0;

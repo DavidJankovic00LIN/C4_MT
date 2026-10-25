@@ -1,12 +1,10 @@
 #include "mcts.h"
 
-#include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
 #include <ctime>
-#include <iostream>
+#include <limits>
 
 int getLowestFreeCell(const char board[BOARD_STORAGE_SIZE], int col1) {
     return lowestFreeCell(board, col1);
@@ -29,7 +27,14 @@ bool isBoardFull(const char board[BOARD_STORAGE_SIZE]) {
 }
 
 Node::Node(int col, Node* parent)
-    : col(col), score(0.0), visits(0), parent(parent) {}
+    : col(col),
+      score(0.0),
+      visits(0),
+      parent(parent),
+      untriedCount(0),
+      terminal(false),
+      result(0.0),
+      aiToMove(true) {}
 
 Node::~Node() {
     for (Node* child : childArray)
@@ -45,20 +50,6 @@ MonteCarloTreeSearch::MonteCarloTreeSearch(const char currentBoard[BOARD_STORAGE
 MonteCarloTreeSearch::~MonteCarloTreeSearch() {
     delete rootNode_;
     rootNode_ = nullptr;
-}
-
-void MonteCarloTreeSearch::getBoardAtNode(Node* node, char out[BOARD_STORAGE_SIZE], bool* turnIsAI) const {
-    std::vector<Node*> path;
-    for (Node* p = node; p != nullptr; p = p->parent)
-        path.push_back(p);
-    std::memcpy(out, board_, BOARD_STORAGE_SIZE);
-    bool turn = true;
-    for (int i = static_cast<int>(path.size()) - 2; i >= 0; --i) {
-        Node* n = path[i];
-        applyMove(out, n->col, turn ? AI : HUMAN);
-        turn = !turn;
-    }
-    *turnIsAI = turn;
 }
 
 double MonteCarloTreeSearch::getUCT(Node* child) const {
@@ -86,53 +77,56 @@ Node* MonteCarloTreeSearch::getBestChild(Node* parent) const {
     return best;
 }
 
-void MonteCarloTreeSearch::runIteration() {
-    Node* current = rootNode_;
-    while (!current->childArray.empty()) {
-        current = getBestChild(current);
-        if (current == nullptr)
-            return;
-    }
-    expand(current);
-    if (current->childArray.empty())
-        return;
-    Node* child = current->childArray[0];
-    char simBoard[BOARD_STORAGE_SIZE];
-    bool turnIsAI;
-    getBoardAtNode(child, simBoard, &turnIsAI);
-    for (int j = 0; j < SIMS_PER_EXPAND; ++j) {
-        double value = simulate(simBoard, turnIsAI);
-        backPropagate(child, value);
+static void fillUntried(Node* node, const char board[BOARD_STORAGE_SIZE]) {
+    node->untriedCount = 0;
+    for (int col = 1; col <= g_board_cols; ++col) {
+        if (isLegalMove(board, col))
+            node->untried[node->untriedCount++] = col;
     }
 }
 
-void MonteCarloTreeSearch::expand(Node* leaf) {
-    char state[BOARD_STORAGE_SIZE];
-    bool turnIsAI;
-    getBoardAtNode(leaf, state, &turnIsAI);
-    for (int c = 1; c <= g_board_cols; ++c) {
-        if (!isLegalMove(state, c))
-            continue;
-        leaf->childArray.push_back(new Node(c, leaf));
+namespace {
+
+struct Scratch {
+    char work[BOARD_STORAGE_SIZE];
+    int  placed[BOARD_ROWS_MAX * BOARD_COLS_MAX];
+    int  n;
+
+    explicit Scratch(const char* src) : n(0) {
+        std::memcpy(work, src, sizeof(work));
     }
-}
+
+    int place(int col, char piece) {
+        int cell = lowestFreeCell(work, col);
+        if (cell == 0)
+            return 0;
+        work[cell] = piece;
+        placed[n++] = cell;
+        return cell;
+    }
+
+    ~Scratch() {
+        for (int i = n - 1; i >= 0; --i)
+            work[placed[i]] = ' ';
+    }
+};
+
+}  // namespace
 
 double MonteCarloTreeSearch::simulate(char board[BOARD_STORAGE_SIZE], bool turnIsAI) const {
-    char sim[BOARD_STORAGE_SIZE];
-    std::memcpy(sim, board, BOARD_STORAGE_SIZE);
     bool turn = turnIsAI;
-    while (findWinner(sim) == EMPTY && !isBoardFull(sim)) {
-        int col1 = randomLegalMove(sim);
-        if (col1 < 0)
-            break;
-        applyMove(sim, col1, turn ? AI : HUMAN);
+    while (!isBoardFull(board)) {
+        int col = randomLegalMove(board);
+        if (col < 0)
+            return 0.0;
+        int cell = lowestFreeCell(board, col);
+        if (cell == 0)
+            return 0.0;
+        board[cell] = turn ? AI : HUMAN;
+        if (winsFromCell(board, cell))
+            return turn ? 1.0 : -2.0;
         turn = !turn;
     }
-    char winner = findWinner(sim);
-    if (winner == AI)
-        return 1.0;
-    if (winner == HUMAN)
-        return -2.0;
     return 0.0;
 }
 
@@ -145,9 +139,57 @@ void MonteCarloTreeSearch::backPropagate(Node* node, double value) {
     }
 }
 
+void MonteCarloTreeSearch::runIteration() {
+    Scratch scratch(board_);
+
+    Node* node = rootNode_;
+    while (!node->terminal && node->untriedCount == 0 && !node->childArray.empty()) {
+        node = getBestChild(node);
+        if (node == nullptr)
+            return;
+        const char piece = node->parent->aiToMove ? AI : HUMAN;
+        if (scratch.place(node->col, piece) == 0)
+            return;
+    }
+
+    if (node->terminal) {
+        backPropagate(node, node->result);
+        return;
+    }
+    if (node->untriedCount == 0) {
+        backPropagate(node, 0.0);
+        return;
+    }
+
+    const int col = node->untried[--node->untriedCount];
+    const char piece = node->aiToMove ? AI : HUMAN;
+    const int cell = scratch.place(col, piece);
+    Node* child = new Node(col, node);
+    child->aiToMove = !node->aiToMove;
+    node->childArray.push_back(child);
+
+    if (cell != 0 && winsFromCell(scratch.work, cell)) {
+        child->terminal = true;
+        child->result = (piece == AI) ? 1.0 : -2.0;
+        backPropagate(child, child->result);
+        return;
+    }
+    if (cell == 0 || isBoardFull(scratch.work)) {
+        child->terminal = true;
+        child->result = 0.0;
+        backPropagate(child, 0.0);
+        return;
+    }
+
+    fillUntried(child, scratch.work);
+    backPropagate(child, simulate(scratch.work, child->aiToMove));
+}
+
 int MonteCarloTreeSearch::bestMove() {
     delete rootNode_;
     rootNode_ = new Node(-1, nullptr);
+    rootNode_->aiToMove = true;
+    fillUntried(rootNode_, board_);
 
     for (int i = 0; i < iterations_; ++i)
         runIteration();
