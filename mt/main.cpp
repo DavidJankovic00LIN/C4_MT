@@ -34,6 +34,9 @@ struct GameResult {
     int     winner;
     char    board[BOARD_STORAGE_SIZE];
     double  durationMs;
+    int     aiMoves;
+    int     scriptMoves;
+    int     totalMoves;
 };
 
 static vector<int> loadMoves(const string& path) {
@@ -77,8 +80,11 @@ static uint8_t negaWinningFromBoard(const char b[BOARD_STORAGE_SIZE]) {
 
 static GameResult runNegamax(const vector<int>& moves) {
     GameResult res;
-    res.aiName = "NegaMax";
-    res.winner = 0;
+    res.aiName      = "NegaMax";
+    res.winner      = 0;
+    res.aiMoves     = 0;
+    res.scriptMoves = 0;
+    res.totalMoves  = 0;
     memset(res.board, ' ', sizeof(res.board));
 
     NegaMaxAI ai;
@@ -101,6 +107,7 @@ static GameResult runNegamax(const vector<int>& moves) {
         if (aiCell != 0) {
             ai.board[aiCell] = 'O';
             memcpy(res.board, ai.board, sizeof(res.board));
+            res.aiMoves++;
         }
 
         uint8_t w = ai.winning();
@@ -129,6 +136,7 @@ static GameResult runNegamax(const vector<int>& moves) {
         if (cell != 0) {
             ai.board[cell] = 'X';
             memcpy(res.board, ai.board, sizeof(res.board));
+            res.scriptMoves++;
         }
 
         w = ai.winning();
@@ -147,13 +155,17 @@ static GameResult runNegamax(const vector<int>& moves) {
     // #endregion
     auto t1          = chrono::high_resolution_clock::now();
     res.durationMs = chrono::duration<double, milli>(t1 - t0).count();
+    res.totalMoves = res.aiMoves + res.scriptMoves;
     return res;
 }
 
 static GameResult runMcts(const vector<int>& moves) {
     GameResult res;
-    res.aiName = "MCTS";
-    res.winner = 0;
+    res.aiName      = "MCTS";
+    res.winner      = 0;
+    res.aiMoves     = 0;
+    res.scriptMoves = 0;
+    res.totalMoves  = 0;
     memset(res.board, ' ', sizeof(res.board));
 
     auto t0 = chrono::high_resolution_clock::now();
@@ -180,8 +192,10 @@ static GameResult runMcts(const vector<int>& moves) {
             debugLog("main.cpp:runMcts_ai", "ai_move", d.str());
         }
         // #endregion
-        if (aiCell != 0)
+        if (aiCell != 0) {
             res.board[aiCell] = 'O';
+            res.aiMoves++;
+        }
 
         uint8_t w = negaWinningFromBoard(res.board);
         if (w != 0) {
@@ -206,8 +220,10 @@ static GameResult runMcts(const vector<int>& moves) {
             debugLog("main.cpp:runMcts_human", "human_move", d.str());
         }
         // #endregion
-        if (cell != 0)
+        if (cell != 0) {
             res.board[cell] = 'X';
+            res.scriptMoves++;
+        }
 
         w = negaWinningFromBoard(res.board);
         if (w != 0) {
@@ -225,6 +241,7 @@ static GameResult runMcts(const vector<int>& moves) {
     // #endregion
     auto t1          = chrono::high_resolution_clock::now();
     res.durationMs = chrono::duration<double, milli>(t1 - t0).count();
+    res.totalMoves = res.aiMoves + res.scriptMoves;
     return res;
 }
 
@@ -246,6 +263,54 @@ static void printResult(const GameResult& r) {
         cout << "Igra nije završena (nema više poteza)\n";
 
     cout << "  Trajanje:  " << r.durationMs << " ms\n";
+}
+
+static void summarizeMoves(const GameResult& nega, const GameResult& mcts) {
+    cout << "\n══════════════════════════════════════════════════════\n";
+    cout << "  ANALIZA POTEZA\n";
+    cout << "══════════════════════════════════════════════════════\n";
+    cout << "  NegaMax:  AI " << nega.aiMoves << "  |  skripta " << nega.scriptMoves
+         << "  |  ukupno " << nega.totalMoves << "\n";
+    cout << "  MCTS:     AI " << mcts.aiMoves << "  |  skripta " << mcts.scriptMoves
+         << "  |  ukupno " << mcts.totalMoves << "\n";
+    cout << "\n";
+    cout << "  NegaMax  " << string(static_cast<size_t>(nega.totalMoves), '#') << "\n";
+    cout << "  MCTS     " << string(static_cast<size_t>(mcts.totalMoves), '#') << "\n";
+}
+
+static void compareMoveEfficiency(const GameResult& nega, const GameResult& mcts) {
+    const bool negaWon = (nega.winner == 2);
+    const bool mctsWon = (mcts.winner == 2);
+
+    cout << "\n";
+    if (negaWon && mctsWon) {
+        if (nega.totalMoves < mcts.totalMoves) {
+            cout << "  -> NegaMax zatvorio igru sa manje poteza (" << nega.totalMoves
+                 << " < " << mcts.totalMoves << ").\n";
+        } else if (mcts.totalMoves < nega.totalMoves) {
+            cout << "  -> MCTS zatvorio igru sa manje poteza (" << mcts.totalMoves
+                 << " < " << nega.totalMoves << ").\n";
+        } else {
+            cout << "  -> Isti broj poteza (" << nega.totalMoves << "). Brzi po vremenu: "
+                 << (nega.durationMs < mcts.durationMs ? "NegaMax" : "MCTS") << ".\n";
+        }
+    } else if (negaWon && !mctsWon) {
+        cout << "  -> NegaMax uspesniji (pobeda, " << nega.totalMoves << " poteza); MCTS: "
+             << mcts.totalMoves << " poteza.\n";
+    } else if (mctsWon && !negaWon) {
+        cout << "  -> MCTS uspesniji (pobeda, " << mcts.totalMoves << " poteza); NegaMax: "
+             << nega.totalMoves << " poteza.\n";
+    } else {
+        if (nega.totalMoves > mcts.totalMoves) {
+            cout << "  -> Ni jedan AI nije pobedio. NegaMax odigrao vise poteza ("
+                 << nega.totalMoves << " > " << mcts.totalMoves << ").\n";
+        } else if (mcts.totalMoves > nega.totalMoves) {
+            cout << "  -> Ni jedan AI nije pobedio. MCTS odigrao vise poteza ("
+                 << mcts.totalMoves << " > " << nega.totalMoves << ").\n";
+        } else {
+            cout << "  -> Ni jedan AI nije pobedio. Isti broj poteza (" << nega.totalMoves << ").\n";
+        }
+    }
 }
 
 static void promptBoardDimensions() {
@@ -313,6 +378,9 @@ int main() {
     } else {
         cout << "\n  -> Ni jedan AI nije pobedio.\n";
     }
+
+    summarizeMoves(negaResult, mctsResult);
+    compareMoveEfficiency(negaResult, mctsResult);
 
     return 0;
 }

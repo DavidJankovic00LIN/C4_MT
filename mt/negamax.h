@@ -15,11 +15,6 @@ public:
 
     int     GetValue(int column);
     uint8_t winning();
+    // Vraća indeks ćelije (kao ranije), bira kolonu spec_v3 stilom.
     int     AIManager();
-
-private:
-    // Vraća stari znak: -1 ako igrač na potezu odmah dobija, inače -max(deca).
-    int NegaMax(int Depth);
-    // Vrednost za igrača na potezu, sa alpha-beta prozorom.
-    int search(int Depth, int alpha, int beta);
 };
