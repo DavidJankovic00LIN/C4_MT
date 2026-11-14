@@ -4,9 +4,9 @@
 #include "defines.hpp"
 
 
-int toInt(const char *buf);
-void toUchar(unsigned char *buf, int value);
+int toInt(unsigned char *buf);
+void toUchar(unsigned char *buf, int val);
 
-string toHex(unsigned char c,);
+string toHex(unsigned char c);
 
 #endif // UTILITIES_HPP

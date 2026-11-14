@@ -10,7 +10,7 @@ int toInt(unsigned char *buf)
 	return val;
 }
 
-void toUchar(unsigned char *buf,int value)
+void toUchar(unsigned char *buf,int val)
 {
 	buf[0]=(char)(val>>24);
 	buf[1]=(char)(val>>16);
