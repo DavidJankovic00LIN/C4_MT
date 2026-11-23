@@ -9,6 +9,8 @@
 #include<iostream>
 #include<bitset>
 #include<cmath>
+#include <tlm_utils/simple_target_socket.h>
+#include <string.h>
 
 typedef tlm::tlm_base_protocol_types::tlm_payload_type pl_t;
 typedef tlm::tlm_base_protocol_types::tlm_phase_type ph_t;
@@ -32,5 +34,10 @@ using namespace sc_dt;
 
 #define VP_ADDR_IP02_HARD_L
 #define VP_ADDR_IP02_HARD_H
+
+#define BRAM_SIZE 
+#define delay
+
+
 
 #endif // TYPEDEFS_HPP
